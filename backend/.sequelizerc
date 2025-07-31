@@ -1,0 +1,15 @@
+const path = require('path');
+
+module.exports = {
+  // Arahkan ke file config di folder root
+  'config': path.resolve(__dirname, 'sequelize.config.cjs'),
+
+  // Arahkan ke folder models di dalam 'src'
+  'models-path': path.resolve(__dirname, 'models'),
+
+  // Arahkan ke folder migrations di folder root
+  'migrations-path': path.resolve(__dirname, 'migrations'),
+
+  // Arahkan ke folder seeders di folder root
+  'seeders-path': path.resolve(__dirname, 'seeders')
+}
