@@ -1,0 +1,40 @@
+# =================================================================
+# File .gitignore
+# Tujuan: Memberitahu Git file dan folder mana yang harus diabaikan.
+# =================================================================
+
+# Folder Dependensi
+# Folder ini berisi semua library yang diinstal oleh npm.
+# Ukurannya sangat besar dan harus diabaikan. Cukup jalankan `npm install`
+# di mesin baru untuk menginstalnya kembali.
+node_modules/
+dist
+
+# File Environment (SANGAT PENTING)
+# File ini berisi semua rahasia dan konfigurasi sensitif seperti
+# password database dan kunci JWT. JANGAN PERNAH diunggah ke Git.
+.env
+
+# File Log
+# Abaikan semua file log yang mungkin dibuat oleh npm atau aplikasi.
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Folder Upload
+# Abaikan folder yang berisi file-file yang diunggah oleh pengguna,
+# seperti gambar profil atau lampiran pesan.
+uploads/
+
+# File Sistem Operasi
+# File-file ini dibuat secara otomatis oleh sistem operasi dan tidak
+# relevan dengan kode proyek.
+.DS_Store
+Thumbs.db
+
+# File Editor Kode / IDE
+# Abaikan folder konfigurasi yang dibuat oleh editor seperti VS Code.
+.vscode/*
+.idea/
+
