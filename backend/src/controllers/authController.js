@@ -79,8 +79,41 @@ export const loginPeserta = catchAsync(async (req, res, next) => {
 });
 
 /**
+ * Controller untuk registrasi Peserta baru.
+ */
+export const registerPeserta = catchAsync(async (req, res, next) => {
+    const { nama_peserta, email, password } = req.body;
+
+    // Cek apakah email sudah terdaftar
+    const existingPeserta = await Peserta.findOne({ where: { email } });
+    if (existingPeserta) {
+        return sendError(res, 'Email sudah terdaftar. Silakan gunakan email lain.', 409); // 409 Conflict
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Buat peserta baru
+    const newPeserta = await Peserta.create({
+        nama_peserta,
+        email,
+        password: hashedPassword
+    });
+
+    // Kirim response tanpa data sensitif
+    const responseData = {
+        user_id: newPeserta.user_id,
+        nama_peserta: newPeserta.nama_peserta,
+        email: newPeserta.email,
+    };
+
+    sendSuccess(res, 'Registrasi berhasil. Silakan login.', responseData, 201);
+});
+
+
+/**
  * Controller untuk Logout (Admin & Peserta).
  */
 export const logout = (req, res) => {
-    sendSuccess(res, 'Logout berhasil.', null, 200);
+  sendSuccess(res, 'Logout berhasil.', null, 200);
 };

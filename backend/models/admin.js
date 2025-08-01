@@ -44,6 +44,9 @@ export default (sequelize) => {
     actived: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
+    },
+    timezone: {
+      timezone: DataTypes.ENUM('WIB', 'WIT', 'WITA'),
     }
   }, {
     sequelize,
