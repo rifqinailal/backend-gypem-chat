@@ -10,7 +10,7 @@ export const verify_token = async (req, res, next) => {
   let token;
 
   // 1. Cek apakah header authorization ada dan berformat 'Bearer'
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+ if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 
@@ -19,10 +19,8 @@ export const verify_token = async (req, res, next) => {
   }
 
   try {
-    // 2. Verifikasi token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 3. Cari pengguna (Admin atau Peserta) berdasarkan data di dalam token
     let currentUser;
     if (decoded.type === 'admin') {
       currentUser = await db.Admin.findByPk(decoded.id);
@@ -34,9 +32,11 @@ export const verify_token = async (req, res, next) => {
       return sendError(res, 'Pengguna yang memiliki token ini sudah tidak ada.', 401);
     }
 
-    // 4. Simpan data pengguna di objek request untuk digunakan oleh controller selanjutnya
-    req.user = currentUser;
-    req.userType = decoded.type;
+    // --- PERBAIKAN KUNCI DI SINI ---
+    req.user = currentUser; // Tetap simpan objek user lengkap
+    req.userId = decoded.id; // Tambahkan ID secara terpisah agar mudah diakses
+    req.userType = decoded.type; // Tambahkan tipe user
+
     next();
   } catch (error) {
     return sendError(res, 'Token tidak valid atau sudah kedaluwarsa.', 401);
