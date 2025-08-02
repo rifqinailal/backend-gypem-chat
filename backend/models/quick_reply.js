@@ -1,9 +1,10 @@
+// File: src/models/QuickReply.js
+
 import { Model, DataTypes } from 'sequelize';
 
 export default (sequelize) => {
   class QuickReply extends Model {
     static associate(models) {
-      // Sebuah QuickReply dimiliki oleh satu Admin
       this.belongsTo(models.Admin, {
         foreignKey: 'admin_id',
         as: 'admin'
@@ -22,7 +23,19 @@ export default (sequelize) => {
       allowNull: false
     },
     content: DataTypes.TEXT,
-    file_path: DataTypes.STRING
+    file_path: DataTypes.STRING,
+
+    // --- TAMBAHKAN KOLOM VIRTUAL INI ---
+    file_url: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const filePath = this.getDataValue('file_path');
+            if (filePath) {
+                return `${process.env.BASE_URL}/uploads/${filePath}`;
+            }
+            return null;
+        }
+    }
   }, {
     sequelize,
     modelName: 'QuickReply',
