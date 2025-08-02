@@ -46,12 +46,13 @@ export default (sequelize) => {
       defaultValue: true
     },
     timezone: {
-      timezone: DataTypes.ENUM('WIB', 'WIT', 'WITA'),
+      type: DataTypes.ENUM('WIB', 'WIT', 'WITA'),
+      allowNull: true
     }
   }, {
     sequelize,
     modelName: 'Admin',
-    tableName: 'Admins', // Sesuaikan dengan nama tabel di migrasi
+    tableName: 'Admins',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'

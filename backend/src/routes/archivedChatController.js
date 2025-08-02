@@ -1,10 +1,12 @@
 import express from 'express';
 import { archiveChats, unarchiveChats, getArchivedChats } from '../controllers/archivedChatController.js';
-import { protect } from '../middleware/authMiddleware.js';
+//import { protect } from '../middleware/authMiddleware.js';
+import { verify_token } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-router.use(protect);
+//router.use(protect);
+router.use(verify_token);
 
 router.patch('/rooms/archive', archiveChats);
 router.patch('/rooms/unarchive', unarchiveChats); // Sesuai API doc, endpointnya /unarchived, tapi saya samakan polanya

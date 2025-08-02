@@ -1,17 +1,15 @@
 import express from 'express';
 import { createAwayMessage, getAwayMessage, updateAwayMessage } from '../controllers/awayMessageController.js';
-import { protect, restrictToAdmin } from '../middleware/authMiddleware.js'; // Asumsi middleware auth
+import { verify_token, restrictToAdmin } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Middleware untuk memastikan hanya admin yang bisa mengakses
-router.use(protect, restrictToAdmin);
+// Semua rute di bawah ini memerlukan login sebagai admin
+router.use(verify_token, restrictToAdmin);
 
-router.route('/settings/away-message')
+router.route('/')
     .post(createAwayMessage)
+    .get(getAwayMessage)
     .patch(updateAwayMessage);
-
-router.route('/away-message')
-    .get(getAwayMessage);
-
+    
 export default router;

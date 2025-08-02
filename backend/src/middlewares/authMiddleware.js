@@ -5,6 +5,7 @@
 import jwt from 'jsonwebtoken';
 import { sendError } from '../utils/apiResponse.js';
 import db from '../../models/index.js';
+import { tokenBlacklist } from '../controllers/authController.js';
 
 export const verify_token = async (req, res, next) => {
   let token;
@@ -18,6 +19,11 @@ export const verify_token = async (req, res, next) => {
     return sendError(res, 'Anda belum login. Silakan login untuk mendapatkan akses.', 401);
   }
 
+  // Cek blacklist
+  if (tokenBlacklist.includes(token)) {
+    return sendError(res, 'Token sudah logout. Silakan login kembali.', 401);
+  }
+  // Verifikasi token
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -31,8 +37,7 @@ export const verify_token = async (req, res, next) => {
     if (!currentUser) {
       return sendError(res, 'Pengguna yang memiliki token ini sudah tidak ada.', 401);
     }
-
-    // --- PERBAIKAN KUNCI DI SINI ---
+    
     req.user = currentUser; // Tetap simpan objek user lengkap
     req.userId = decoded.id; // Tambahkan ID secara terpisah agar mudah diakses
     req.userType = decoded.type; // Tambahkan tipe user

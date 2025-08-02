@@ -5,8 +5,10 @@
 import fs from 'fs';
 import path from 'path';
 import { DataTypes } from 'sequelize';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { sequelize } from '../src/config/database.js';
+
+
 
 // Helper untuk mendapatkan __dirname di ES Module
 const __filename = fileURLToPath(import.meta.url);
@@ -21,9 +23,10 @@ const files = fs.readdirSync(__dirname).filter(file =>
 
 // Impor setiap model dan tambahkan ke objek db
 for (const file of files) {
-  // Gunakan dynamic import karena kita berada di ES Module
-  const modelModule = await import(path.join(__dirname, file));
-  const model = modelModule.default(sequelize, DataTypes); // Panggil fungsi default dari file model
+  // Ubah path ke file URL agar bisa di-import oleh ESM
+  const fileUrl = pathToFileURL(path.join(__dirname, file));
+  const modelModule = await import(fileUrl.href); // <-- INI YANG BENAR
+  const model = modelModule.default(sequelize, DataTypes);
   db[model.name] = model;
 }
 

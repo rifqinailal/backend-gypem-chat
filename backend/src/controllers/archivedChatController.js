@@ -71,7 +71,7 @@ export const getArchivedChats = catchAsync(async (req, res, next) => {
             as: 'room',
             include: [
                 {
-                    model: db.RoomDescription, // Asumsi model ini ada
+                    model: db.RoomDescription,
                     as: 'description'
                 },
                 // Anda mungkin perlu menambahkan include untuk mendapatkan last_message, dll.
@@ -87,8 +87,8 @@ export const getArchivedChats = catchAsync(async (req, res, next) => {
         room_id: rm.room.room_id,
         room_member_id: rm.room_member_id,
         room_type: rm.room.room_type,
-        name: rm.room.description?.name || 'Nama Room', // Sesuaikan
-        url_photo: rm.room.description?.url_photo || '', // Sesuaikan
+        name: rm.room.description?.name || 'Nama Room',
+        url_photo: rm.room.description?.url_photo || '',
         is_archived: rm.is_archived,
         is_pinned: rm.is_pinned,
         // last_message, last_message_time, unread_count perlu diambil secara terpisah

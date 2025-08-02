@@ -1,4 +1,3 @@
-
 /**
  * Mengirim response sukses.
  * @param {object} res - Objek response Express.

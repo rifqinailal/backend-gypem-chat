@@ -1,162 +1,86 @@
-// =================================================================
-// File: src/controllers/messageController.js
-// Tujuan: Menangani logika bisnis inti untuk pesan.
-// =================================================================
 import db from '../../models/index.js';
-
-import { Op } from 'sequelize';
 import { catchAsync } from '../utils/catchAsync.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
+import { Op } from 'sequelize';
 
-const Message = db.Message;
 const MessageStatus = db.MessageStatus;
 const RoomMember = db.RoomMember;
-const Attachment = db.Attachment;
+const Message = db.Message;
 
-export const sendMessage = catchAsync(async (req, res, next) => {
-  const { roomId } = req.params;
-  const { content, reply_to_message_id } = req.body;
-  
-  const senderId = req.userId;
-  const senderType = req.userType;
+/**
+ * @description Helper function untuk mengubah status bintang pada banyak pesan.
+ */
+const toggleStarStatus = async (req, res, next, starStatus) => {
+    const { message_ids } = req.body;
+    const memberId = req.user.user_id || req.user.admin_id;
+    const memberType = req.userType;
 
-  const t = await db.sequelize.transaction();
-
-  try {
-    const newMessage = await Message.create({
-      room_id: roomId,
-      sender_id: senderId,
-      sender_type: senderType,
-      content,
-      reply_to_message_id
-    }, { transaction: t });
-
-    const members = await RoomMember.findAll({
-      where: { room_id: roomId },
-      attributes: ['room_member_id', 'member_id', 'member_type'],
-      transaction: t
-    });
-
-    const statusesToCreate = members.map(member => {
-      const isSender = member.member_id === senderId && member.member_type === senderType;
-      return {
-        message_id: newMessage.message_id,
-        room_member_id: member.room_member_id,
-        read_at: isSender ? new Date() : null
-      };
-    });
-
-    await MessageStatus.bulkCreate(statusesToCreate, { transaction: t });
-
-    await t.commit();
-    
-    sendSuccess(res, 'Pesan berhasil dikirim', newMessage, 201);
-  } catch (error) {
-    await t.rollback();
-    console.error("Error saat mengirim pesan:", error); 
-    return sendError(res, 'Gagal mengirim pesan', 500);
-  }
-});
-
-export const getMessagesByRoom = catchAsync(async (req, res, next) => {
-  const { roomId } = req.params;
-
-  // --- PERBAIKAN KUNCI DI SINI ---
-  // Pastikan kita menggunakan req.userId dan req.userType yang sudah disiapkan middleware
-  const userRoomMember = await RoomMember.findOne({
-    where: { room_id: roomId, member_id: req.userId, member_type: req.userType }
-  });
-
-  if (!userRoomMember) {
-    return sendError(res, 'Anda bukan anggota dari room ini.', 403);
-  }
-
-  const messages = await Message.findAll({
-    where: {
-      room_id: roomId,
-      is_deleted_globally: false
-
-    },
-    include: [
-      {
-        model: Attachment,
-        as: 'attachment'
-      },
-      {
-        model: MessageStatus,
-        as: 'statuses',
-        where: { room_member_id: userRoomMember.room_member_id , is_deleted_for_me: false },
-        required: false
-      }
-    ],
-    order: [['created_at', 'ASC']]
-  });
-
-  sendSuccess(res, 'Data pesan berhasil didapatkan', messages);
-});
-
-export const readMessages = catchAsync(async (req, res, next) => {
-    const { message_status_ids } = req.body;
-    
-    const userRoomMembers = await RoomMember.findAll({
-        where: { member_id: req.userId, member_type: req.userType },
-        attributes: ['room_member_id']
-    });
-    const userRoomMemberIds = userRoomMembers.map(rm => rm.room_member_id);
-
-    await MessageStatus.update(
-        { read_at: new Date() },
-        {
-            where: {
-                message_status_id: { [Op.in]: message_status_ids },
-                room_member_id: { [Op.in]: userRoomMemberIds },
-                read_at: null
-            }
-        }
-    );
-
-    sendSuccess(res, 'Pesan berhasil ditandai sebagai dibaca.');
-});
-
-export const deleteMessageForMe = catchAsync(async (req, res, next) => {
-    const { message_status_ids } = req.body;
-
-    const userRoomMembers = await RoomMember.findAll({
-        where: { member_id: req.userId, member_type: req.userType },
-        attributes: ['room_member_id']
-    });
-    const userRoomMemberIds = userRoomMembers.map(rm => rm.room_member_id);
-
-    await MessageStatus.update(
-        { is_deleted_for_me: true },
-        {
-            where: {
-                message_status_id: { [Op.in]: message_status_ids },
-                room_member_id: { [Op.in]: userRoomMemberIds }
-            }
-        }
-    );
-    
-    sendSuccess(res, 'Pesan berhasil dihapus dari tampilan Anda.');
-});
-
-export const deleteMessageGlobally = catchAsync(async (req, res, next) => {
-    const { message_id } = req.body;
-
-    const message = await Message.findOne({
-        where: {
-            message_id: message_id,
-            sender_id: req.userId,
-            sender_type: req.userType
-        }
-    });
-
-    if (!message) {
-        return sendError(res, 'Pesan tidak ditemukan atau Anda bukan pengirimnya.', 403);
+    if (!message_ids || !Array.isArray(message_ids) || message_ids.length === 0) {
+        return sendError(res, 'message_ids harus berupa array dan tidak boleh kosong.', 400);
     }
 
-    await message.update({ is_deleted_globally: true });
+    // 1. Dapatkan semua room_member_id untuk user ini
+    const userRoomMembers = await RoomMember.findAll({
+        where: { member_id: memberId, member_type: memberType },
+        attributes: ['room_member_id']
+    });
+    const userRoomMemberIds = userRoomMembers.map(rm => rm.room_member_id);
 
-    sendSuccess(res, 'Pesan berhasil dihapus untuk semua orang.');
+    // 2. Update status pesan
+    const [affectedCount] = await MessageStatus.update(
+        { is_starred: starStatus },
+        {
+            where: {
+                message_id: { [Op.in]: message_ids },
+                room_member_id: { [Op.in]: userRoomMemberIds } // Security check
+            }
+        }
+    );
+
+    if (affectedCount === 0) {
+        return sendError(res, 'Tidak ada pesan yang diupdate. Pastikan message_id valid dan milik Anda.', 404);
+    }
+
+    const statusText = starStatus ? 'dibintangi' : 'bintangnya dihapus';
+    sendSuccess(res, `${affectedCount} pesan berhasil ${statusText}.`, { updated_count: affectedCount });
+};
+
+export const starMessages = catchAsync((req, res, next) => toggleStarStatus(req, res, next, true));
+export const unstarMessages = catchAsync((req, res, next) => toggleStarStatus(req, res, next, false));
+
+export const getStarredMessages = catchAsync(async (req, res, next) => {
+    const { roomId, q } = req.query;
+
+    // 1. Dapatkan semua room_member_id untuk user ini
+    const userRoomMembers = await RoomMember.findAll({
+        where: { member_id: req.userId, member_type: req.userType },
+        attributes: ['room_member_id', 'room_id']
+    });
+
+    const userRoomMemberIds = userRoomMembers.map(rm => rm.room_member_id);
+
+    // 2. Buat kondisi pencarian
+    const whereClause = {
+        room_member_id: { [Op.in]: userRoomMemberIds },
+        is_starred: true
+    };
+
+    const includeMessageWhere = {};
+    if (roomId) {
+        const targetRoomMember = userRoomMembers.find(rm => rm.room_id == roomId);
+        if (targetRoomMember) {
+            whereClause.room_member_id = targetRoomMember.room_member_id;
+        }
+    }
+    if (q) {
+        includeMessageWhere.content = { [Op.like]: `%${q}%` };
+    }
+
+    const starredStatuses = await MessageStatus.findAll({
+        where: whereClause,
+        include: [{ model: Message, as: 'message', where: includeMessageWhere, required: true }],
+        order: [['updated_at', 'DESC']]
+    });
+
+    sendSuccess(res, 'Daftar pesan berbintang berhasil diambil.', starredStatuses);
 });
-
