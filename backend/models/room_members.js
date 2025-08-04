@@ -28,6 +28,7 @@ export default (sequelize) => {
     member_type: DataTypes.ENUM('admin', 'peserta'),
     is_archived: DataTypes.BOOLEAN,
     is_pinned: DataTypes.BOOLEAN,
+    is_left: DataTypes.BOOLEAN,
     is_deleted: DataTypes.BOOLEAN
   }, {
     sequelize,
