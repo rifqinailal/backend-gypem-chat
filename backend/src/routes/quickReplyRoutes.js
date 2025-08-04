@@ -7,7 +7,8 @@ import {
   createQuickReply,
   updateQuickReply,
   getAllQuickReplies,
-  getQuickReplyById
+  getQuickReplyById,
+  deleteQuickReply
 } from '../controllers/quickReplyController.js';
 import { verify_token } from '../middlewares/authMiddleware.js';
 import { restrictToAdmin } from '../middlewares/permissionMiddleware.js';
@@ -26,6 +27,7 @@ router.route('/settings/quick-replies')
 // Rute untuk mengedit dan menampilkan detail quick reply
 router.route('/settings/quick-replies/:qreplyId')
   .put(uploadFile, updateQuickReply) // Method PUT lebih cocok untuk update resource lengkap
-  .get(getQuickReplyById);
+  .get(getQuickReplyById)
+  .delete(deleteQuickReply);
 
 export default router;

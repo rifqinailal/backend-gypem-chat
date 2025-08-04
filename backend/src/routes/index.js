@@ -6,6 +6,8 @@ import { sendSuccess } from '../utils/apiResponse.js';
 // 1. Impor router baru yang sudah Anda buat
 import authRoutes from './authRoutes.js';
 import messageRoutes from './messageRoutes.js';
+import quickReplayRoutes from './quickReplyRoutes.js';
+import pinnedMessageRoutes from './pinnedMessageRoutes.js';
 
 const router = express.Router();
 
@@ -16,7 +18,8 @@ router.get('/', (req, res) => {
 
 // 2. Gunakan authRoutes untuk semua request ke /auth
 router.use('/auth', authRoutes);
-
-router.use('/', messageRoutes);
+router.use(messageRoutes);
+router.use(quickReplayRoutes);
+router.use(pinnedMessageRoutes);
 
 export default router;

@@ -108,3 +108,22 @@ export const getQuickReplyById = catchAsync(async (req, res, next) => {
 
   sendSuccess(res, 'Data berhasil didapatkan', reply);
 });
+
+
+export const deleteQuickReply = catchAsync(async (req, res, next) => {
+  const { qreplyId } = req.params;
+  const adminId = req.userId;
+
+  const quickReply = await QuickReply.findOne({
+    where: { qreply_id: qreplyId, admin_id: adminId }
+  });
+
+  if (!quickReply) {
+    return sendError(res, 'Quick reply tidak ditemukan atau Anda tidak punya akses.', 404);
+  }
+
+  // Hapus data dari database
+  await quickReply.destroy();
+
+  sendSuccess(res, 'Quick reply berhasil dihapus.');
+});
