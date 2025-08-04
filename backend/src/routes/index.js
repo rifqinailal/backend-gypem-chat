@@ -6,6 +6,8 @@ import { sendSuccess } from '../utils/apiResponse.js';
 // 1. Impor router baru yang sudah Anda buat
 import authRoutes from './authRoutes.js';
 import messageRoutes from './messageRoutes.js';
+import roomRoutes from './roomRoutes.js';
+import searchRoutes from "./searchRoutes.js";
 
 const router = express.Router();
 
@@ -18,5 +20,7 @@ router.get('/', (req, res) => {
 router.use('/auth', authRoutes);
 
 router.use('/', messageRoutes);
+router.use('/rooms', roomRoutes);
+router.use('/', searchRoutes);
 
 export default router;
