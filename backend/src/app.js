@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Muat environment variables dari file .env
 
@@ -23,8 +24,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads', express.static('uploads'));
-
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 /*
 ============================================================
