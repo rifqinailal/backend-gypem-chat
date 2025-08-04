@@ -1,16 +1,43 @@
 import express from 'express';
-import { starMessages, unstarMessages, getStarredMessages } from '../controllers/starredMessageController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import Joi from 'joi';
+import { verify_token } from '../middlewares/authMiddleware.js';
+import { sendError } from '../utils/apiResponse.js';
+import { starMessages, unstarMessages, getAllStarred, getStarredByRoom, searchStarred } from '../controllers/starredMessageController.js';
 
 const router = express.Router();
 
-router.use(protect);
+// Skema validasi
+const starUnstarSchema = Joi.object({
+    message_status_id: Joi.array().items(Joi.number().integer().positive()).min(1).required()
+});
 
-router.patch('/messages/star', starMessages);
-router.patch('/messages/unstar', unstarMessages);
+const validate = (schema) => (req, res, next) => {
+    const { error } = schema.validate(req.body);
+    if (error) {
+        return sendError(res, error.details[0].message, 400);
+    }
+    next();
+};
 
-router.get('/messages/starred', getStarredMessages);
-router.get('/messages/starred/search', getStarredMessages); // Ditangani oleh controller yang sama
-router.get('/rooms/:roomId/messages/starred', getStarredMessages); // Ditangani oleh controller yang sama
+// Semua rute di sini memerlukan otentikasi
+router.use(verify_token);
+
+// PATCH /api/messages/star
+router.patch('/messages/star', validate(starUnstarSchema), starMessages);
+
+// PATCH /api/messages/unstar
+router.patch('/messages/unstar', validate(starUnstarSchema), unstarMessages);
+
+// GET /api/messages/starred
+router.get('/messages/starred', getAllStarred);
+
+// GET /api/messages/starred/search?q={keyword}
+router.get('/messages/starred/search', searchStarred);
+
+// GET /api/rooms/{roomId}/messages/starred (URL diubah agar lebih RESTful)
+router.get('/rooms/:roomId/messages/starred', getStarredByRoom);
+
+// GET /api/messages/starred/search?q={keyword}
+router.get('/messages/starred/search', searchStarred);
 
 export default router;

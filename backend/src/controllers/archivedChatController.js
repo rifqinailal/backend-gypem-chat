@@ -1,101 +1,152 @@
+import { Op } from 'sequelize';
 import db from '../../models/index.js';
 import { catchAsync } from '../utils/catchAsync.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
-import { Op } from 'sequelize';
 
-const RoomMember = db.RoomMember;
+const { RoomMember, Room, RoomDescription, Message, Peserta, Admin, MessageStatus } = db;
 
 /**
- * @description Helper function untuk mengubah status arsip pada banyak room.
+ * Mengubah status arsip (archive/unarchive) untuk satu atau lebih room.
  */
-const toggleArchiveStatus = async (req, res, next, archiveStatus) => {
-    const { room_member_ids } = req.body;
-    const memberId = req.user.user_id || req.user.admin_id;
-    const memberType = req.userType;
+const updateArchiveStatus = async (req, res, targetStatus) => {
+    const { room_member_id } = req.body;
+    const { userId, userType } = req;
+    
+    const members = await RoomMember.findAll({
+        where: {
+            room_member_id: { [Op.in]: room_member_id },
+            member_id: userId,
+            member_type: userType
+        }
+    });
 
-    if (!room_member_ids || !Array.isArray(room_member_ids) || room_member_ids.length === 0) {
-        return sendError(res, 'room_member_ids harus berupa array dan tidak boleh kosong.', 400);
+    if (members.length !== room_member_id.length) {
+        return sendError(res, 'Satu atau lebih ID room tidak valid atau bukan milik Anda.', 403);
+    }
+    
+    const alreadyInStatus = members.some(member => member.is_archived === targetStatus);
+    const messagePart = targetStatus ? 'diarsipkan' : 'dikeluarkan dari arsip';
+    if (alreadyInStatus) {
+         return sendError(res, `Satu atau lebih room sudah ${messagePart}.`, 409);
     }
 
-    const [affectedCount] = await RoomMember.update(
-        { is_archived: archiveStatus },
+    const [updatedCount] = await RoomMember.update(
+        { is_archived: targetStatus },
         {
             where: {
-                room_member_id: { [Op.in]: room_member_ids },
-                member_id: memberId, // Security check: pastikan user hanya mengupdate miliknya
-                member_type: memberType
+                room_member_id: { [Op.in]: room_member_id },
+                member_id: userId,
+                member_type: userType
             }
         }
     );
-
-    if (affectedCount === 0) {
-        return sendError(res, 'Tidak ada chat yang diupdate. Pastikan room_member_id valid dan milik Anda.', 404);
+    
+    if (updatedCount > 0) {
+        sendSuccess(res, `Room berhasil ${messagePart}`, null, 200);
+    } else {
+        sendError(res, 'Gagal mengupdate status arsip room.', 500);
     }
 
-    const statusText = archiveStatus ? 'diarsipkan' : 'dikeluarkan dari arsip';
-    sendSuccess(res, `Chat berhasil ${statusText}.`, { updated_count: affectedCount });
 };
 
 /**
- * @description Mengarsipkan satu atau lebih chat.
- * @route PATCH /rooms/archive
- * @access Private
+ * Controller untuk mengarsipkan chat.
+ * PATCH /rooms/archive
  */
-export const archiveChats = (req, res, next) => toggleArchiveStatus(req, res, next, true);
+export const archiveRooms = catchAsync(async (req, res) => {
+    await updateArchiveStatus(req, res, true);
+});
 
 /**
- * @description Membatalkan arsip satu atau lebih chat.
- * @route PATCH /rooms/unarchive
- * @access Private
+ * Controller untuk membatalkan arsip chat.
+ * PATCH /rooms/unarchived
  */
-export const unarchiveChats = (req, res, next) => toggleArchiveStatus(req, res, next, false);
-
+export const unarchiveRooms = catchAsync(async (req, res) => {
+    await updateArchiveStatus(req, res, false);
+});
 
 /**
- * @description Menampilkan semua chat yang diarsipkan oleh pengguna.
- * @route GET /rooms/archived
- * @access Private
+ * Controller untuk menampilkan semua chat yang diarsipkan oleh user.
+ * GET /rooms/archived
  */
-export const getArchivedChats = catchAsync(async (req, res, next) => {
-    const memberId = req.user.user_id || req.user.admin_id;
-    const memberType = req.userType;
+export const getArchivedRooms = catchAsync(async (req, res) => {
+    const { userId, userType } = req;
 
-    const archivedRoomMembers = await RoomMember.findAll({
+    // 1. Ambil semua room member milik user yang diarsipkan
+    const archivedMemberships = await RoomMember.findAll({
         where: {
-            member_id: memberId,
-            member_type: memberType,
-            is_archived: true
+            member_id: userId,
+            member_type: userType,
+            is_archived: true,
         },
         include: [{
-            model: db.Room,
+            model: Room,
             as: 'room',
-            include: [
-                {
-                    model: db.RoomDescription,
-                    as: 'description'
-                },
-                // Anda mungkin perlu menambahkan include untuk mendapatkan last_message, dll.
-                // Ini memerlukan query yang lebih kompleks.
-            ]
-        }]
+        }],
+        order: [['updated_at', 'DESC']]
     });
-    
-    // TODO: Transformasikan data `archivedRoomMembers` agar sesuai dengan format response yang diinginkan.
-    // Ini mungkin memerlukan query tambahan untuk mendapatkan `last_message`, `unread_count`, dll. untuk setiap room.
-    // Contoh transformasi sederhana:
-    const formattedData = archivedRoomMembers.map(rm => ({
-        room_id: rm.room.room_id,
-        room_member_id: rm.room_member_id,
-        room_type: rm.room.room_type,
-        name: rm.room.description?.name || 'Nama Room',
-        url_photo: rm.room.description?.url_photo || '',
-        is_archived: rm.is_archived,
-        is_pinned: rm.is_pinned,
-        // last_message, last_message_time, unread_count perlu diambil secara terpisah
-        last_message: "Contoh last message", 
-        last_message_time: new Date().toISOString(),
-        unread_count: 0
-    }));
 
-    sendSuccess(res, 'Semua chat arsip berhasil diambil.', formattedData);
+    if (archivedMemberships.length === 0) {
+        return sendSuccess(res, "Data berhasil didapatkan", [], 200);
+    }
+
+    const responseData = await Promise.all(
+        archivedMemberships.map(async (member) => {
+            const room = member.room;
+            let name, url_photo;
+
+            if (room.room_type === 'group') {
+                const description = await RoomDescription.findOne({ where: { room_id: room.room_id } });
+                name = description?.name || 'Grup Tanpa Nama';
+                url_photo = description?.url_photo || null;
+            } else {
+                const otherMember = await RoomMember.findOne({
+                    where: {
+                        room_id: room.room_id,
+                        member_id: { [Op.ne]: userId }
+                    }
+                });
+                
+                if (otherMember) {
+                    const partner = otherMember.member_type === 'admin' 
+                        ? await Admin.findByPk(otherMember.member_id, { attributes: ['nama_admin', 'url_profile_photo'] })
+                        : await Peserta.findByPk(otherMember.member_id, { attributes: ['nama_peserta', 'url_profile_photo'] });
+                    
+                    name = partner?.nama_admin || partner?.nama_peserta || 'User Dihapus';
+                    url_photo = partner?.url_profile_photo || null;
+                } else {
+                    name = 'Chat Kosong';
+                }
+            }
+
+            // Dapatkan pesan terakhir
+            const lastMessage = await Message.findOne({
+                where: { room_id: room.room_id },
+                order: [['created_at', 'DESC']]
+            });
+
+            // Hitung pesan belum dibaca
+            const unreadCount = await MessageStatus.count({
+                where: {
+                    room_member_id: member.room_member_id,
+                    read_at: null,
+                }
+            });
+
+            return {
+                room_id: room.room_id,
+                room_member_id: member.room_member_id,
+                room_type: room.room_type,
+                name: name,
+                url_photo: url_photo,
+                last_message: lastMessage?.content || null,
+                last_message_time: lastMessage?.created_at || null,
+                unread_count: unreadCount,
+                is_pinned: member.is_pinned,
+                is_archived: member.is_archived
+            };
+        })
+    );
+    
+    sendSuccess(res, 'Data berhasil didapatkan', responseData, 200);
 });

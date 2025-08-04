@@ -5,15 +5,27 @@
  * @param {object} [data] - Data yang akan dikirim (opsional).
  * @param {number} [statusCode=200] - Kode status HTTP.
  */
-export const sendSuccess = (res, message, data, statusCode = 200) => {
+export const sendSuccess = (res, message, data, statusCode) => {
+  // Cek jika argumen 'data' sebenarnya adalah 'statusCode'
+  // Ini terjadi jika 'data' adalah angka dan 'statusCode' tidak diberikan.
+  if (typeof data === 'number' && statusCode === undefined) {
+    statusCode = data;
+    data = undefined;
+  }
+
+  // Set status code default ke 200 jika tidak ada yang diberikan
+  const finalStatusCode = statusCode || 200;
   const response = {
     status: 'success',
     message,
   };
+
+  // Hanya tambahkan field 'data' jika 'data' benar-benar ada (bukan undefined)
   if (data !== undefined) {
     response.data = data;
   }
-  res.status(statusCode).json(response);
+
+  res.status(finalStatusCode).json(response);
 };
 
 /**
@@ -26,5 +38,5 @@ export const sendError = (res, message, statusCode = 500) => {
   res.status(statusCode).json({
     status: 'error',
     message,
-  });
+  });
 };

@@ -12,7 +12,7 @@ const Admin = db.Admin;
 const Peserta = db.Peserta;
 
 /**
- * Controller untuk login Admin.
+ * Login Admin.
  */
 export const loginAdmin = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
@@ -46,7 +46,7 @@ export const loginAdmin = catchAsync(async (req, res, next) => {
 });
 
 /**
- * Controller untuk login Peserta.
+ * Login Peserta.
  */
 export const loginPeserta = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
@@ -147,3 +147,74 @@ export const registerPeserta = catchAsync(async (req, res, next) => {
       };
       sendSuccess(res, 'Detail admin ditemukan', responseData, 200);
     });
+    
+    // Update profil Admin
+    export const updateAdminProfile = catchAsync(async (req, res, next) => {
+      const { adminId } = req.params;
+      const { nama_admin, bio } = req.body;
+      
+      if (req.userType !== 'admin' || req.userId !== parseInt(adminId, 10)) {
+        return sendError(res, 'Akses ditolak. Anda hanya dapat mengedit profil Anda sendiri.', 403);
+      }
+      
+      const admin = await Admin.findByPk(adminId);
+      if (!admin) {
+        return sendError(res, 'Admin tidak ditemukan', 404);
+      }
+      admin.nama_admin = nama_admin;
+      
+      if ('bio' in req.body) {
+        admin.bio = bio;
+      }
+      
+      if (req.file) {
+        const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        admin.url_profile_photo = photoUrl;
+      }
+      
+      await admin.save();
+      
+      const responseData = {
+        admin_id: admin.admin_id,
+        nama_admin: admin.nama_admin,
+        email: admin.email,
+        bio: admin.bio,
+        url_profile_photo: admin.url_profile_photo
+      };
+      
+      sendSuccess(res, 'Profil berhasil diperbarui', responseData, 200);
+    });
+    
+    //pdate profile Peserta.
+    export const updatePesertaProfile = catchAsync(async (req, res, next) => {
+      const { userId } = req.params;
+      const { nama_peserta } = req.body;
+      
+      if (req.userType !== 'peserta' || req.userId !== parseInt(userId, 10)) {
+        return sendError(res, 'Akses ditolak. Anda hanya dapat mengedit profil Anda sendiri.', 403);
+      }
+      
+      const peserta = await Peserta.findByPk(userId);
+      
+      if (!peserta) {
+        return sendError(res, 'Peserta tidak ditemukan', 404);
+      }
+      
+      if (nama_peserta) peserta.nama_peserta = nama_peserta;
+      
+      if (req.file) {
+        const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        peserta.url_profile_photo = photoUrl;
+      }
+      
+      await peserta.save();
+      
+      const responseData = {
+        user_id: peserta.user_id,
+        nama_peserta: peserta.nama_peserta,
+        email: peserta.email,
+        url_profile_photo: peserta.url_profile_photo
+      };
+
+    sendSuccess(res, 'Profil berhasil diperbarui', responseData, 200);
+});

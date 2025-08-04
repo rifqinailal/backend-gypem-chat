@@ -5,59 +5,67 @@ import { sendSuccess, sendError } from '../utils/apiResponse.js';
 const AwayMessage = db.AwayMessage;
 
 /**
- * @description Membuat Away Message baru untuk admin. Hanya bisa dibuat jika belum ada.
- * @route POST /api/away-message
- * @access Private (Admin)
+ * Membuat Away Message baru
  */
 export const createAwayMessage = catchAsync(async (req, res, next) => {
-    const adminId = req.user.admin_id;
     const { content, start_time, end_time, actived } = req.body;
+    const admin_id = req.userId; // Diambil dari token
 
-    const existingMessage = await AwayMessage.findOne({ where: { admin_id: adminId } });
+    // Cek apakah admin sudah punya away message
+    const existingMessage = await AwayMessage.findOne({ where: { admin_id } });
     if (existingMessage) {
-        return sendError(res, 'Away message sudah ada. Gunakan endpoint PATCH untuk mengedit.', 409);
+        return sendError(res, 'Anda sudah memiliki Away Message. Silakan edit yang sudah ada.', 409); // 409 Conflict
     }
 
-    const awayMessage = await AwayMessage.create({
-        admin_id: adminId,
+    // Tidak perlu menyimpan hasil create ke variabel jika tidak digunakan
+    await AwayMessage.create({
+        admin_id,
         content,
         start_time,
         end_time,
-        actived
+        actived: actived !== undefined ? actived : true,
     });
-
-    sendSuccess(res, 'Away message berhasil disimpan.', awayMessage, 201);
+    
+    sendSuccess(res, 'Away message berhasil dibuat.', 201);
 });
 
 /**
- * @description Menampilkan Away Message milik admin.
- * @route GET /api/away-message
- * @access Private (Admin)
+ * Menampilkan Away Message milik admin yang sedang login.
+ * Perubahan: Tidak lagi memerlukan awayId, langsung cari berdasarkan admin_id.
  */
 export const getAwayMessage = catchAsync(async (req, res, next) => {
-    const adminId = req.user.admin_id;
-    const awayMessage = await AwayMessage.findOne({ where: { admin_id: adminId } });
+    const admin_id = req.userId;
+
+    const awayMessage = await AwayMessage.findOne({ where: { admin_id } });
 
     if (!awayMessage) {
-        return sendError(res, 'Away message tidak ditemukan.', 404);
+        return sendError(res, 'Away message tidak ditemukan. Silakan buat terlebih dahulu.', 404);
     }
 
-    sendSuccess(res, 'Away message berhasil didapatkan.', awayMessage);
+    sendSuccess(res, 'Away message berhasil ditemukan.', awayMessage, 200);
 });
 
 /**
- * @description Mengedit Away Message yang sudah ada.
- * @route PATCH /api/away-message
- * @access Private (Admin)
+ * Mengedit Away Message milik admin yang sedang login.
+ * Perubahan: Tidak lagi memerlukan awayId.
  */
 export const updateAwayMessage = catchAsync(async (req, res, next) => {
-    const adminId = req.user.admin_id;
-    const awayMessage = await AwayMessage.findOne({ where: { admin_id: adminId } });
+    const { content, start_time, end_time, actived } = req.body;
+    const admin_id = req.userId;
+
+    const awayMessage = await AwayMessage.findOne({ where: { admin_id } });
 
     if (!awayMessage) {
-        return sendError(res, 'Away message tidak ditemukan untuk diupdate.', 404);
+        return sendError(res, 'Away message tidak ditemukan. Silakan buat terlebih dahulu.', 404);
     }
 
-    await awayMessage.update(req.body);
-    sendSuccess(res, 'Away message berhasil diupdate.', awayMessage);
+    // Update field yang diberikan
+    awayMessage.content = content !== undefined ? content : awayMessage.content;
+    awayMessage.start_time = start_time !== undefined ? start_time : awayMessage.start_time;
+    awayMessage.end_time = end_time !== undefined ? end_time : awayMessage.end_time;
+    awayMessage.actived = actived !== undefined ? actived : awayMessage.actived;
+
+    await awayMessage.save();
+
+    sendSuccess(res, 'Away message berhasil diperbarui.', awayMessage, 200);
 });

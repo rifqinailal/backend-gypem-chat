@@ -9,6 +9,8 @@ import { verify_token } from '../middlewares/authMiddleware.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { getAllAdmins } from '../controllers/authController.js';
 import { getAdminDetail } from '../controllers/authController.js';
+import { updateAdminProfile, updatePesertaProfile } from '../controllers/authController.js';
+import { handleUpload } from '../utils/upload.js';
 
 const router = express.Router();
 
@@ -32,6 +34,14 @@ const loginSchema = Joi.object({
   password: Joi.string().required()
 });
 
+const updateAdminProfileSchema = Joi.object({
+  // nama_admin wajib ada (required) dan berupa string
+  nama_admin: Joi.string().min(3).required(),
+
+  // bio adalah opsional dan boleh string kosong
+  bio: Joi.string().allow('').optional()
+});
+
 const validateLogin = (req, res, next) => {
   const { error } = loginSchema.validate(req.body);
   if (error) {
@@ -40,7 +50,13 @@ const validateLogin = (req, res, next) => {
   next();
 };
 
-
+const validateUpdateAdminProfile = (req, res, next) => {
+  const { error } = updateAdminProfileSchema.validate(req.body);
+  if (error) {
+    return sendError(res, error.details[0].message, 400);
+  }
+  next();
+};
 
 // Rute untuk login admin: POST /api/auth/admin/login
 router.post('/admin/login', validateLogin, loginAdmin);
@@ -75,5 +91,22 @@ router.get('/admin/all', verify_token, getAllAdmins);
 
 // Rute untuk menampilkan detail salah satu admin: GET /api/auth/admin/:adminId
 router.get('/admin/:adminId', verify_token, getAdminDetail);
+
+// Rute untuk edit profil admin: PATCH /api/auth/admin/profile/:adminId
+router.patch(
+  '/admin/profile/:adminId',
+  verify_token,
+  validateUpdateAdminProfile,
+  handleUpload('file_photo'), // 'file_photo' adalah nama field di form-data
+  updateAdminProfile
+);
+
+// Rute untuk edit profil peserta: PATCH /api/auth/peserta/profile/:userId
+router.patch(
+  '/peserta/profile/:userId',
+  verify_token,
+  handleUpload('file_photo'),
+  updatePesertaProfile
+);
 
 export default router;

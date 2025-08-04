@@ -2,9 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Muat environment variables dari file .env
 
+// Helper untuk mendapatkan __dirname di ES Module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Impor router utama dan helper
 import mainRouter from './routes/index.js';
@@ -22,7 +27,8 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static('uploads'));
+//app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // app.use('/uploads', express.static('public/uploads'));
 
