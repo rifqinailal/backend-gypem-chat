@@ -169,28 +169,43 @@ export const deleteMessageForMe = catchAsync(async (req, res, next) => {
 
 //menghapus pesan untuk semua
 export const deleteMessageGlobally = catchAsync(async (req, res, next) => {
-    const { message_id } = req.body;
+    // Sekarang kita menerima sebuah array 'message_ids'
+    const { message_ids } = req.body;
 
-    // 1. Cari pesan untuk memastikan pengirimnya adalah user yang sedang login
-    const message = await Message.findOne({
+    // 1. Cari semua pesan yang cocok dengan ID yang diberikan DAN dikirim oleh user ini
+    const messagesToDelete = await Message.findAll({
         where: {
-            message_id: message_id,
+            message_id: { [Op.in]: message_ids },
             sender_id: req.userId,
             sender_type: req.userType
         }
     });
 
-    if (!message) {
+    // Jika tidak ada satupun pesan yang ditemukan (ID salah atau bukan milik user)
+    if (messagesToDelete.length === 0) {
         return sendError(res, 'Pesan tidak ditemukan atau Anda bukan pengirimnya.', 403);
     }
 
-    // 2. Cek untuk 409 Conflict: Apakah pesan sudah dihapus secara global?
-    if (message.is_deleted_globally) {
-        return sendError(res, 'Pesan sudah dihapus.', 409);
+    // 2. Cek untuk 409 Conflict: Apakah SEMUA pesan yang dipilih sudah dihapus?
+    const allAlreadyDeleted = messagesToDelete.every(msg => msg.is_deleted_globally === true);
+    if (allAlreadyDeleted) {
+        return sendError(res, 'Semua pesan yang dipilih sudah dihapus.', 409);
     }
 
-    // 3. Lakukan update
-    await message.update({ is_deleted_globally: true });
+    // Ambil hanya ID pesan yang belum dihapus untuk di-update
+    const idsToUpdate = messagesToDelete
+        .filter(msg => !msg.is_deleted_globally)
+        .map(msg => msg.message_id);
+
+    // 3. Lakukan update massal (bulk update)
+    await Message.update(
+        { is_deleted_globally: true },
+        {
+            where: {
+                message_id: { [Op.in]: idsToUpdate }
+            }
+        }
+    );
 
     sendSuccess(res, 'Pesan berhasil dihapus untuk semua orang.');
 });
