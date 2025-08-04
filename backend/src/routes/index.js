@@ -20,10 +20,10 @@ router.get('/', (req, res) => {
 
 // 2. Gunakan authRoutes untuk semua request ke /auth
 router.use('/auth', authRoutes);
-router.use(quickReplyRoutes);
 router.use(pinnedMessageRoutes);
 router.use(messageRoutes);
 router.use('/rooms', roomRoutes);
 router.use('/', searchRoutes);
+router.use(quickReplyRoutes);
 
 export default router;
