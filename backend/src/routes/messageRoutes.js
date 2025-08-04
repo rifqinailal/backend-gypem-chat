@@ -9,7 +9,8 @@ import {
   deleteMessageGlobally
 } from '../controllers/messageController.js';
 import { verify_token } from '../middlewares/authMiddleware.js';
-import { uploadFile } from '../middlewares/uploadMiddleware.js';
+// Impor middleware yang baru
+import { handleUploadWithErrors } from '../middlewares/uploadMiddleware.js';
 import { sendError } from '../utils/apiResponse.js';
 
 const router = express.Router();
@@ -21,7 +22,6 @@ router.use(verify_token);
 const validate = (schema) => (req, res, next) => {
   const { error } = schema.validate(req.body);
   if (error) {
-    //  kirim 400 untuk validasi gagal
     return sendError(res, 'Pesan Gagal dihapus. ' + error.details[0].message, 400);
   }
   next();
@@ -33,26 +33,29 @@ const deleteForMeSchema = Joi.object({
 });
 
 const deleteGloballySchema = Joi.object({
-    message_id: Joi.number().integer().required()
+    message_ids: Joi.array().items(Joi.number().integer()).min(1).required()
+});
+
+const readMessageSchema = Joi.object({
+    message_status_ids: Joi.array().items(Joi.number().integer()).min(1).required()
 });
 
 // --- Definisi Rute ---
 
 // Rute untuk mengirim dan menampilkan pesan dalam sebuah room
 router.route('/rooms/:roomId/messages')
-  .post(uploadFile, sendMessage) 
+  // Ganti 'uploadFile' dengan 'handleUploadWithErrors'
+  .post(handleUploadWithErrors, sendMessage) 
   .get(getMessagesByRoom);
 
-
-
 // Rute untuk menandai pesan sebagai dibaca
-router.post('/messages/read', readMessages);
+router.post('/messages/read',validate(readMessageSchema), readMessages);
 
 // Rute untuk menghapus pesan (untuk diri sendiri)
-router.post('/messages/deleted-for-me', deleteMessageForMe);
+router.post('/messages/deleted-for-me', validate(deleteForMeSchema), deleteMessageForMe);
 
 // Rute untuk menghapus pesan (untuk semua)
-router.post('/messages/deleted-globally', deleteMessageGlobally);
+router.post('/messages/deleted-globally', validate(deleteGloballySchema), deleteMessageGlobally);
 
 //route untuk menampilkan pesan berdasarkan kategori
 router.get('/rooms/:roomId/messages/:type', getMessagesByType);

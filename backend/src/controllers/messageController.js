@@ -47,7 +47,7 @@ export const sendMessage = catchAsync(async (req, res, next) => {
 
 
   if (!messageContent && !req.file) {
-    return sendError(res, 'Konten pesan tidak boleh kosong', 400);
+    return sendError(res, 'Pesan gagal dikirim', 400);
   }
 
   const t = await db.sequelize.transaction();
@@ -86,11 +86,11 @@ export const sendMessage = catchAsync(async (req, res, next) => {
 
     await t.commit();
     
-    const finalMessage = await Message.findByPk(newMessage.message_id, {
-      include: 'attachment'
-    });
+    // const finalMessage = await Message.findByPk(newMessage.message_id, {
+    //   include: 'attachment'
+    // });
 
-    sendSuccess(res, 'Pesan berhasil dikirim', finalMessage, 201);
+    sendSuccess(res, 'Pesan berhasil dikirim', 201);
   } catch (error) {
     await t.rollback();
     console.error("Error saat mengirim pesan:", error); 
@@ -102,24 +102,33 @@ export const sendMessage = catchAsync(async (req, res, next) => {
 export const readMessages = catchAsync(async (req, res, next) => {
     const { message_status_ids } = req.body;
     
+    // 1. Dapatkan semua ID keanggotaan room milik user
     const userRoomMembers = await RoomMember.findAll({
         where: { member_id: req.userId, member_type: req.userType },
         attributes: ['room_member_id']
     });
     const userRoomMemberIds = userRoomMembers.map(rm => rm.room_member_id);
 
-    await MessageStatus.update(
+    // 2. Lakukan update dan dapatkan jumlah baris yang terpengaruh
+    const [updatedCount] = await MessageStatus.update(
         { read_at: new Date() },
         {
             where: {
                 message_status_id: { [Op.in]: message_status_ids },
-                room_member_id: { [Op.in]: userRoomMemberIds },
-                read_at: null
+                room_member_id: { [Op.in]: userRoomMemberIds }, // Security check
+                read_at: null // Hanya update yang belum dibaca
             }
         }
     );
 
-    sendSuccess(res, 'Pesan berhasil ditandai sebagai dibaca.');
+    // 3. Cek apakah ada baris yang berhasil di-update
+    if (updatedCount === 0) {
+        // Ini bisa berarti ID tidak ada, bukan milik user, atau semua pesan yang dipilih sudah dibaca.
+        // Mengirim 400 Bad Request adalah pilihan yang aman.
+        return sendError(res, 'Pesan gagal dibaca.', 400);
+    }
+
+    sendSuccess(res, 'Pesan berhasil dibaca.');
 });
 
 

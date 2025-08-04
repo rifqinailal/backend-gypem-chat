@@ -95,13 +95,13 @@ export const getPinnedMessagesByRoom = catchAsync(async (req, res, next) => {
     where: {
       room_member_id: userRoomMember.room_member_id,
       is_pinned: true,
-      is_deleted_for_me: false // <-- PERUBAHAN: Sembunyikan jika sudah dihapus untuk saya
+      is_deleted_for_me: false //  Sembunyikan jika sudah dihapus untuk saya
     },
     include: [{
       model: Message,
       as: 'message',
       where: {
-        is_deleted_globally: false // <-- PERUBAHAN: Sembunyikan jika sudah dihapus global
+        is_deleted_globally: false //  Sembunyikan jika sudah dihapus global
       },
       required: true // Gunakan INNER JOIN untuk memastikan pesan ada & tidak dihapus global
     }],
