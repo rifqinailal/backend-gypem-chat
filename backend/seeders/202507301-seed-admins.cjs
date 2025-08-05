@@ -19,7 +19,6 @@ module.exports = {
         password: hashedPassword1,
         bio: 'Admin yang bertugas untuk zona Waktu Indonesia Barat.',
         actived: true,
-        timezone: 'WIB',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -29,7 +28,6 @@ module.exports = {
         password: hashedPassword2,
         bio: 'Admin yang bertugas untuk zona Waktu Indonesia Barat.',
         actived: true,
-        timezone: 'WIB',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -39,7 +37,6 @@ module.exports = {
         password: hashedPassword3,
         bio: 'Admin yang bertugas untuk zona Waktu Indonesia Tengah.',
         actived: true,
-        timezone: 'WITA',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -49,7 +46,6 @@ module.exports = {
         password: hashedPassword4,
         bio: 'Admin yang bertugas untuk zona Waktu Indonesia Tengah.',
         actived: true,
-        timezone: 'WITA',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -59,7 +55,6 @@ module.exports = {
         password: hashedPassword5,
         bio: 'Admin yang bertugas untuk zona Waktu Indonesia Timur.',
         actived: true,
-        timezone: 'WIT',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -69,7 +64,6 @@ module.exports = {
         password: hashedPassword6,
         bio: 'Admin yang bertugas untuk zona Waktu Indonesia Timur.',
         actived: true,
-        timezone: 'WIT',
         created_at: new Date(),
         updated_at: new Date()
       }

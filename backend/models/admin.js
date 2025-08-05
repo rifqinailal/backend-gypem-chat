@@ -2,11 +2,6 @@ import { Model, DataTypes } from 'sequelize';
 
 export default (sequelize) => {
   class Admin extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
       // Admin memiliki banyak AwayMessage
       this.hasMany(models.AwayMessage, {
@@ -44,10 +39,6 @@ export default (sequelize) => {
     actived: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
-    },
-    timezone: {
-      type: DataTypes.ENUM('WIB', 'WIT', 'WITA'),
-      allowNull: true
     }
   }, {
     sequelize,
