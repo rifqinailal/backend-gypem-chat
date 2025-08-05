@@ -23,9 +23,8 @@ const files = fs.readdirSync(__dirname).filter(file =>
 
 // Impor setiap model dan tambahkan ke objek db
 for (const file of files) {
-  // Ubah path ke file URL agar bisa di-import oleh ESM
-  const fileUrl = pathToFileURL(path.join(__dirname, file));
-  const modelModule = await import(fileUrl.href); // <-- INI YANG BENAR
+  const fileUrl = new URL(file, import.meta.url);
+  const modelModule = await import(fileUrl);
   const model = modelModule.default(sequelize, DataTypes);
   db[model.name] = model;
 }

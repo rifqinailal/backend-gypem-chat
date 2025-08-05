@@ -3,10 +3,17 @@ import { sendSuccess } from '../utils/apiResponse.js';
 
 // 1. Impor router baru yang sudah Anda buat
 import authRoutes from './authRoutes.js';
+
 //import messageRoutes from './messageRoutes.js';
 import awayMessageRoutes from './awayMessageRoutes.js';
 import starredMessageRoutes from './starredMessageRoutes.js';
 import archivedChatRoutes from './archivedChatRoutes.js';
+import messageRoutes from './messageRoutes.js';
+import quickReplyRoutes from './quickReplyRoutes.js';
+import pinnedMessageRoutes from './pinnedMessageRoutes.js';
+import roomRoutes from './roomRoutes.js';
+import searchRoutes from "./searchRoutes.js";
+
 
 const router = express.Router();
 
@@ -21,5 +28,10 @@ router.use('/auth', authRoutes);
 router.use('/away-message', awayMessageRoutes);
 router.use('/', starredMessageRoutes);
 router.use('/rooms', archivedChatRoutes);
+router.use(pinnedMessageRoutes);
+router.use(messageRoutes);
+router.use('/rooms', roomRoutes);
+router.use('/', searchRoutes);
+router.use(quickReplyRoutes);
 
 export default router;

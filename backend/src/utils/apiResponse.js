@@ -27,7 +27,6 @@ export const sendSuccess = (res, message, data, statusCode) => {
 
   res.status(finalStatusCode).json(response);
 };
-
 /**
  * Mengirim response error.
  * @param {object} res - Objek response Express.
