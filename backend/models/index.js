@@ -5,7 +5,7 @@
 import fs from 'fs';
 import path from 'path';
 import { DataTypes } from 'sequelize';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
 import { sequelize } from '../src/config/database.js';
 
 

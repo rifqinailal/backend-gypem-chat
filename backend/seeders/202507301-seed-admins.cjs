@@ -5,8 +5,8 @@ const saltRounds = 10; // Faktor kompleksitas hash
 module.exports = {
   async up (queryInterface, Sequelize) {
     // Hash password sebelum dimasukkan ke database
-    const hashedPassword1 = await bcrypt.hash('Admin1', saltRounds);
-    const hashedPassword2 = await bcrypt.hash('Admin2', saltRounds);
+    const hashedPassword1 = await bcrypt.hash('Admin111', saltRounds);
+    const hashedPassword2 = await bcrypt.hash('Admin222', saltRounds);
     const hashedPassword3 = await bcrypt.hash('Admin3', saltRounds);
     const hashedPassword4 = await bcrypt.hash('Admin4', saltRounds);
     const hashedPassword5 = await bcrypt.hash('Admin5', saltRounds);
