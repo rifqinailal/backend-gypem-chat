@@ -9,7 +9,6 @@
     "migrate": "sequelize db:migrate",
     "seed": "sequelize db:seed:all",
     "migrate:undo": "npx sequelize-cli db:migrate:undo:all",
-    "db:seed": "npx sequelize-cli db:seed:all",
     "migrate:fresh": "npm run migrate:undo && npm run migrate && npm run db:seed"
   },
   "author": "",
