@@ -12,29 +12,26 @@ const Admin = db.Admin;
 const Peserta = db.Peserta;
 
 /**
- * Controller untuk login Admin.
+ * Login Admin.
  */
 export const loginAdmin = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   const admin = await Admin.findOne({ where: { email } });
-
-  // Sesuai dokumentasi, jika akun tidak ditemukan kirim 403
+  
   if (!admin) {
     return sendError(res, 'Login gagal. Akun tidak ditemukan', 403);
   }
 
   const isPasswordMatch = await bcrypt.compare(password, admin.password);
   
-  // Sesuai dokumentasi, jika password salah kirim 400
+  
   if (!isPasswordMatch) {
     return sendError(res, 'Password atau kata sandi salah', 400);
   }
-
+  
   const tokenPayload = { id: admin.admin_id, type: 'admin' };
   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1d' });
-
-  // --- PERUBAHAN DI SINI ---
-  // Sekarang kita sertakan semua data yang dibutuhkan oleh dokumentasi.
+  
   const responseData = {
     admin_id: admin.admin_id,
     nama_admin: admin.nama_admin,
@@ -44,13 +41,12 @@ export const loginAdmin = catchAsync(async (req, res, next) => {
     actived: admin.actived,
     token: token
   };
-
-  // Sesuai dokumentasi, status sukses adalah 200
+  
   sendSuccess(res, 'Login berhasil', responseData, 200);
 });
 
 /**
- * Controller untuk login Peserta.
+ * Login Peserta.
  */
 export const loginPeserta = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
@@ -79,8 +75,146 @@ export const loginPeserta = catchAsync(async (req, res, next) => {
 });
 
 /**
- * Controller untuk Logout (Admin & Peserta).
+ * Controller untuk registrasi Peserta baru.
  */
-export const logout = (req, res) => {
-    sendSuccess(res, 'Logout berhasil.', null, 200);
-};
+export const registerPeserta = catchAsync(async (req, res, next) => {
+    const { nama_peserta, email, password } = req.body;
+    
+    const existingPeserta = await Peserta.findOne({ where: { email } });
+    if (existingPeserta) {
+        return sendError(res, 'Email sudah terdaftar. Silakan gunakan email lain.', 409);
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    const newPeserta = await Peserta.create({
+        nama_peserta,
+        email,
+        password: hashedPassword
+    });
+    const tokenPayload = { id: newPeserta.user_id, type: 'peserta' };
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1d' });
+    const responseData = {
+        user_id: newPeserta.user_id,
+        nama_peserta: newPeserta.nama_peserta,
+        email: newPeserta.email,
+        token: token
+      };
+      sendSuccess(res, 'Registrasi berhasil. Silakan login.', responseData, 201);
+    });
+    
+    /*** Controller untuk Logout (Admin & Peserta).*/
+    //export const logout = (req, res) => {
+    //sendSuccess(res, 'Logout berhasil.', null, 200);
+    //};
+    
+    // Controller untuk Logout (Admin & Peserta). Simpan blacklist di memori (untuk demo, gunakan Redis/DB untuk produksi)
+    const tokenBlacklist = [];
+    export { tokenBlacklist };
+    export const logout = (req, res) => {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (token) {
+        tokenBlacklist.push(token);
+      }
+      sendSuccess(res, 'Logout berhasil.', null, 200);
+    };
+    
+    // Melihat semua admin
+    export const getAllAdmins = catchAsync(async (req, res, next) => {
+      const admins = await db.Admin.findAll({
+        attributes: { exclude: ['password', 'actived'] }
+      });
+      sendSuccess(res, 'Daftar semua admin', admins, 200);
+    });
+    
+    // Melihat detail admin berdasarkan ID
+    export const getAdminDetail = catchAsync(async (req, res, next) => {
+      const { adminId } = req.params;
+      if (req.userType !== 'admin' || req.userId !== parseInt(adminId, 10)) {
+        return sendError(res, 'Detail Admin tidak ditemukan.', 404);
+      }
+      const admin = req.user;
+      const responseData = {
+        admin_id: admin.admin_id,
+        nama_admin: admin.nama_admin,
+        email: admin.email,
+        bio: admin.bio,
+        url_profile_photo: admin.url_profile_photo,
+        timezone: admin.timezone,
+        created_at: admin.createdAt,
+        updated_at: admin.updatedAt
+      };
+      sendSuccess(res, 'Detail admin ditemukan', responseData, 200);
+    });
+    
+    // Update profil Admin
+    export const updateAdminProfile = catchAsync(async (req, res, next) => {
+      const { adminId } = req.params;
+      const { nama_admin, bio } = req.body;
+      
+      if (req.userType !== 'admin' || req.userId !== parseInt(adminId, 10)) {
+        return sendError(res, 'Akses ditolak. Anda hanya dapat mengedit profil Anda sendiri.', 403);
+      }
+      
+      const admin = await Admin.findByPk(adminId);
+      if (!admin) {
+        return sendError(res, 'Admin tidak ditemukan', 404);
+      }
+      admin.nama_admin = nama_admin;
+      
+      if ('bio' in req.body) {
+        admin.bio = bio;
+      }
+      
+      if (req.file) {
+        const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        admin.url_profile_photo = photoUrl;
+      }
+      
+      await admin.save();
+      
+      const responseData = {
+        admin_id: admin.admin_id,
+        nama_admin: admin.nama_admin,
+        email: admin.email,
+        bio: admin.bio,
+        url_profile_photo: admin.url_profile_photo
+      };
+      
+      sendSuccess(res, 'Profil berhasil diperbarui', responseData, 200);
+    });
+    
+    //pdate profile Peserta.
+    export const updatePesertaProfile = catchAsync(async (req, res, next) => {
+      const { userId } = req.params;
+      const { nama_peserta } = req.body;
+      
+      if (req.userType !== 'peserta' || req.userId !== parseInt(userId, 10)) {
+        return sendError(res, 'Akses ditolak. Anda hanya dapat mengedit profil Anda sendiri.', 403);
+      }
+      
+      const peserta = await Peserta.findByPk(userId);
+      
+      if (!peserta) {
+        return sendError(res, 'Peserta tidak ditemukan', 404);
+      }
+      
+      if (nama_peserta) peserta.nama_peserta = nama_peserta;
+      
+      if (req.file) {
+        const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        peserta.url_profile_photo = photoUrl;
+      }
+      
+      await peserta.save();
+      
+      const responseData = {
+        user_id: peserta.user_id,
+        nama_peserta: peserta.nama_peserta,
+        email: peserta.email,
+        url_profile_photo: peserta.url_profile_photo
+      };
+
+    sendSuccess(res, 'Profil berhasil diperbarui', responseData, 200);
+});

@@ -44,11 +44,15 @@ export default (sequelize) => {
     actived: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
+    },
+    timezone: {
+      type: DataTypes.ENUM('WIB', 'WIT', 'WITA'),
+      allowNull: true
     }
   }, {
     sequelize,
     modelName: 'Admin',
-    tableName: 'Admins', // Sesuaikan dengan nama tabel di migrasi
+    tableName: 'Admins',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'

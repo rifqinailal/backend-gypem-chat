@@ -2,8 +2,8 @@ import db from '../../models/index.js';
 import { Op } from 'sequelize';
 import { catchAsync } from '../utils/catchAsync.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
+import { Op } from 'sequelize';
 
-const Message = db.Message;
 const MessageStatus = db.MessageStatus;
 const RoomMember = db.RoomMember;
 const Attachment = db.Attachment;

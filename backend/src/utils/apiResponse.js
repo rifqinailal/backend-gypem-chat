@@ -1,4 +1,3 @@
-
 /**
  * Mengirim response sukses.
  * @param {object} res - Objek response Express.
@@ -16,7 +15,6 @@ export const sendSuccess = (res, message, data, statusCode) => {
 
   // Set status code default ke 200 jika tidak ada yang diberikan
   const finalStatusCode = statusCode || 200;
-
   const response = {
     status: 'success',
     message,
@@ -39,5 +37,5 @@ export const sendError = (res, message, statusCode = 500) => {
   res.status(statusCode).json({
     status: 'error',
     message,
-  });
+  });
 };

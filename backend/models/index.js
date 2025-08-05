@@ -5,8 +5,10 @@
 import fs from 'fs';
 import path from 'path';
 import { DataTypes } from 'sequelize';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { sequelize } from '../src/config/database.js';
+
+
 
 // Helper untuk mendapatkan __dirname di ES Module
 const __filename = fileURLToPath(import.meta.url);
