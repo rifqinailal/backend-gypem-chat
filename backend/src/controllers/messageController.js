@@ -100,7 +100,7 @@ export const sendMessage = catchAsync(async (req, res, next) => {
 
 //Api membaca pesan
 export const readMessages = catchAsync(async (req, res, next) => {
-    const { message_status_ids } = req.body;
+    const { message_status_id } = req.body;
     
     // 1. Dapatkan semua ID keanggotaan room milik user
     const userRoomMembers = await RoomMember.findAll({
@@ -114,7 +114,7 @@ export const readMessages = catchAsync(async (req, res, next) => {
         { read_at: new Date() },
         {
             where: {
-                message_status_id: { [Op.in]: message_status_ids },
+                message_status_id: { [Op.in]: message_status_id },
                 room_member_id: { [Op.in]: userRoomMemberIds }, // Security check
                 read_at: null // Hanya update yang belum dibaca
             }
@@ -134,7 +134,7 @@ export const readMessages = catchAsync(async (req, res, next) => {
 
 //menghapus pesan untuk saya
 export const deleteMessageForMe = catchAsync(async (req, res, next) => {
-    const { message_status_ids } = req.body;
+    const { message_status_id } = req.body;
 
     // 1. Dapatkan semua ID keanggotaan room milik user
     const userRoomMembers = await RoomMember.findAll({
@@ -146,7 +146,7 @@ export const deleteMessageForMe = catchAsync(async (req, res, next) => {
     // 2. Cek status pesan yang ingin dihapus
     const statusesToDelete = await MessageStatus.findAll({
         where: {
-            message_status_id: { [Op.in]: message_status_ids },
+            message_status_id: { [Op.in]: message_status_id },
             room_member_id: { [Op.in]: userRoomMemberIds } // Pastikan hanya milik user
         }
     });
@@ -178,13 +178,13 @@ export const deleteMessageForMe = catchAsync(async (req, res, next) => {
 
 //menghapus pesan untuk semua
 export const deleteMessageGlobally = catchAsync(async (req, res, next) => {
-    // Sekarang kita menerima sebuah array 'message_ids'
-    const { message_ids } = req.body;
+    // Sekarang kita menerima sebuah array 'message_id'
+    const { message_id } = req.body;
 
     // 1. Cari semua pesan yang cocok dengan ID yang diberikan DAN dikirim oleh user ini
     const messagesToDelete = await Message.findAll({
         where: {
-            message_id: { [Op.in]: message_ids },
+            message_id: { [Op.in]: message_id },
             sender_id: req.userId,
             sender_type: req.userType
         }
