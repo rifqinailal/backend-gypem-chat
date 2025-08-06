@@ -39,3 +39,15 @@ export const sendError = (res, message, statusCode = 500) => {
     message,
   });
 };
+
+// Dibuat untuk schema validasi joi
+export const validate = (schema, property = "body", errorCode = 400) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req[property], { abortEarly: false });
+    if (error) {
+      const msg = error.details.map((d) => d.message).join(", ");
+      return sendError(res, msg, errorCode);
+    }
+    next();
+  };
+};

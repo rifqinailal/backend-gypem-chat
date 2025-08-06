@@ -16,7 +16,26 @@ export async function fetchRoomSummaries(userId, userType) {
         as: "room",
         include: [
           { model: RoomDescription, as: "description" },
-          { model: RoomMember, as: "members", where: { is_deleted: false } },
+          {
+            model: RoomMember,
+            as: "members",
+            where: { is_deleted: false },
+            required: false,
+            include: [
+              {
+                model: Admin,
+                as: "admin",
+                attributes: ["admin_id", "nama_admin"],
+                required: false,
+              },
+              {
+                model: Peserta,
+                as: "peserta",
+                attributes: ["user_id", "nama_peserta"],
+                required: false,
+              },
+            ],
+          },
         ],
       },
     ],
@@ -36,14 +55,53 @@ export async function fetchRoomSummaries(userId, userType) {
         displayName = room.description?.name;
       }
       else {
-        const otherMember = room.members.find(rm => rm.member_id !== userId);
+        const otherMember = room.members?.find((rm) => {
+          const isNotCurrentUser =
+            rm.member_id !== userId || rm.member_type !== userType;
+          return isNotCurrentUser;
+        });
+        
         if (otherMember) {
           if (otherMember.member_type === "admin") {
-            const admin = await Admin.findByPk(otherMember.member_id);
-            displayName = admin?.nama_admin || null;
-          } else {
-            const peserta = await Peserta.findByPk(otherMember.member_id);
-            displayName = peserta?.nama_peserta || null;
+            displayName = otherMember.admin?.nama_admin;
+          } else if (otherMember.member_type === "peserta") {
+            displayName = otherMember.peserta?.nama_peserta;
+          }
+        } else {
+
+          // Fallback manual jika members tidak ada atau tidak sesuai
+          const allRoomMembers = await RoomMember.findAll({
+            where: {
+              room_id: room.room_id,
+              is_deleted: false,
+              [Op.or]: [
+                { member_id: { [Op.ne]: userId } },
+                { member_type: { [Op.ne]: userType } },
+              ],
+            },
+            include: [
+              {
+                model: Admin,
+                as: "admin",
+                attributes: ["admin_id", "nama_admin"],
+                required: false,
+              },
+              {
+                model: Peserta,
+                as: "peserta",
+                attributes: ["user_id", "nama_peserta"],
+                required: false,
+              },
+            ],
+          });
+
+          if (allRoomMembers.length > 0) {
+            const fallbackMember = allRoomMembers[0];
+            if (fallbackMember.member_type === "admin") {
+              displayName = fallbackMember.admin?.nama_admin;
+            } else if (fallbackMember.member_type === "peserta") {
+              displayName = fallbackMember.peserta?.nama_peserta;
+            }
           }
         }
       }

@@ -13,8 +13,16 @@ export default (sequelize) => {
         foreignKey: 'room_member_id',
         as: 'messageStatuses'
       });
-      // Relasi polimorfik (diatur di level aplikasi)
-      // Anda bisa menambahkan getter untuk mengambil data Admin atau Peserta
+      this.belongsTo(models.Admin, {
+        foreignKey: "member_id",
+        constraints: false,
+        as: "admin",
+      });
+      this.belongsTo(models.Peserta, {
+        foreignKey: "member_id",
+        constraints: false,
+        as: "peserta",
+      });
     }
   }
   RoomMember.init({
