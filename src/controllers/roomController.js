@@ -5,7 +5,7 @@ import { Op } from "sequelize";
 import { fetchRoomSummaries } from "../services/roomService.js";
 import crypto from "crypto";
 
-const { Room, RoomDescription, RoomMember, sequelize } = db;
+const { Room, RoomDescription, RoomMember, Message, MessageStatus, sequelize } = db;
 
 // Menampilkan semua room
 export const getAllRooms = catchAsync(async (req, res) => {
@@ -22,7 +22,7 @@ export const getRoomDetail = catchAsync(async (req, res) => {
       {
         model: Room,
         as: "room",
-        include: [ { model: RoomDescription, as: "description" } ],
+        include: [{ model: RoomDescription, as: "description" }],
       },
     ],
   });
@@ -43,7 +43,7 @@ export const getRoomDetail = catchAsync(async (req, res) => {
 });
 
 // Buat room one-to-one
-export const createPrivateRoom = catchAsync(async (req, res) => {
+export const createPrivateRoom = catchAsync(async (req, res, next) => {
   const { target_admin_id } = req.body;
   const userId = req.userId;
   const userType = req.userType;
@@ -53,22 +53,76 @@ export const createPrivateRoom = catchAsync(async (req, res) => {
     return sendError(res, "Anda tidak punya akses", 403);
   }
 
-  // cek duplikat
-  const exists = await Room.findOne({
-    where: { room_type: "one_to_one" },
+  // Check for existing one-to-one room between these specific two users
+  const currentUserRooms = await RoomMember.findAll({
+    where: {
+      member_id: userId,
+    },
     include: [
       {
-        model: RoomMember,
-        as: "members",
-        where: { member_id: { [Op.in]: [userId, target_admin_id] } },
+        model: Room,
+        as: "room",
+        where: { room_type: "one_to_one" },
+        required: true,
       },
     ],
+    attributes: ['room_id'],
   });
-  if (exists) {
-    return sendError(res, "Room sudah ada", 409);
+
+  let exists = null;
+  
+  if (currentUserRooms.length > 0) {
+    const roomIds = currentUserRooms.map(rm => rm.room_id);
+    const targetAdminInSameRoom = await RoomMember.findOne({
+      where: {
+        room_id: { [Op.in]: roomIds },
+        member_id: target_admin_id,
+        member_type: "admin",
+      },
+      include: [
+        {
+          model: Room,
+          as: "room",
+          include: [
+            {
+              model: RoomMember,
+              as: "members",
+              attributes: ['room_member_id', 'member_id', 'member_type', 'is_deleted', 'is_left', 'is_archived'],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (targetAdminInSameRoom) {
+      exists = targetAdminInSameRoom.room;
+    }
   }
 
-  // transaksi untuk room + members
+  if (exists) {
+    // Check if current user has deleted this room
+    const currentUserMembership = exists.members.find(m => m.member_id === userId);
+    
+    if (currentUserMembership && currentUserMembership.is_deleted) {
+      // Restore the room for the current user
+      currentUserMembership.is_deleted = false;
+      currentUserMembership.is_left = false;
+      currentUserMembership.is_archived = false;
+      await currentUserMembership.save();
+      
+      return sendSuccess(
+        res,
+        "One-to-one room berhasil dibuat",
+        { room_id: exists.room_id },
+        201
+      );
+    } else {
+      // Room already exists and is active
+      return sendError(res, "Room sudah ada", 409);
+    }
+  }
+
+  // transaksi untuk room + members - create new room
   const transaction = await sequelize.transaction();
   try {
     const room = await Room.create(
@@ -77,17 +131,30 @@ export const createPrivateRoom = catchAsync(async (req, res) => {
     );
     await RoomMember.bulkCreate(
       [
-        { room_id: room.room_id, member_id: userId, member_type: userType },
+        { 
+          room_id: room.room_id, 
+          member_id: userId, 
+          member_type: userType,
+          is_deleted: false,
+          is_left: false,
+          is_archived: false,
+          is_pinned: false
+        },
         {
           room_id: room.room_id,
           member_id: target_admin_id,
           member_type: "admin",
+          is_deleted: false,
+          is_left: false,
+          is_archived: false,
+          is_pinned: false
         },
       ],
       { transaction }
     );
     await transaction.commit();
-    return sendSuccess(res, "One-to-one room berhasil dibuat", null, 201);
+    return sendSuccess(res, "One-to-one room berhasil dibuat", 
+      { room_id: room.room_id }, 201);
   } catch (err) {
     await transaction.rollback();
     return next(err);
@@ -95,7 +162,7 @@ export const createPrivateRoom = catchAsync(async (req, res) => {
 });
 
 // Buat group baru
-export const createGroupRoom = catchAsync(async (req, res) => {
+export const createGroupRoom = catchAsync(async (req, res, next) => {
   const { name, description } = req.body;
   const file = req.file;
   const userType = req.userType;
@@ -270,25 +337,77 @@ export const deleteRooms = catchAsync(async (req, res) => {
       member_type: req.userType,
       is_deleted: false,
     },
+    include: [
+      {
+        model: Room,
+        as: "room",
+      },
+    ],
   });
 
   if (members.length === 0) {
     return sendError(res, "Room tidak ditemukan", 404);
   }
 
-  for (const m of members) {
-    const room = await db.Room.findByPk(m.room_id);
-    if (room.room_type === "group" && !m.is_left) {
-      return sendError(res, "Anda harus keluar grup sebelum menghapusnya", 403);
+  const transaction = await sequelize.transaction();
+
+  try {
+    for (const member of members) {
+      const room = member.room;
+
+      if (room.room_type === "group" && !member.is_left) {
+        await transaction.rollback();
+        return sendError(
+          res,
+          "Anda harus keluar grup sebelum menghapusnya",
+          403
+        );
+      }
+
+      // Mark room as deleted for the user
+      member.is_deleted = true;
+      await member.save({ transaction });
+
+      // For one-to-one rooms, mark all messages as deleted for this user
+      if (room.room_type === "one_to_one") {
+        // Find all messages in this room
+        const messages = await Message.findAll({
+          where: { room_id: room.room_id },
+          transaction,
+        });
+
+        // For each message, update or create MessageStatus
+        for (const message of messages) {
+          const [messageStatus, created] = await MessageStatus.findOrCreate({
+            where: {
+              message_id: message.message_id,
+              room_member_id: member.room_member_id,
+            },
+            defaults: {
+              message_id: message.message_id,
+              room_member_id: member.room_member_id,
+              is_deleted_for_me: true,
+              read_at: null,
+              is_starred: false,
+              is_pinned: false,
+            },
+            transaction,
+          });
+
+          if (!created) {
+            messageStatus.is_deleted_for_me = true;
+            await messageStatus.save({ transaction });
+          }
+        }
+      }
     }
+
+    await transaction.commit();
+    sendSuccess(res, "Room berhasil dihapus");
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
   }
-
-  await RoomMember.update(
-    { is_deleted: true },
-    { where: { room_member_id: { [Op.in]: room_member_id } } }
-  );
-
-  sendSuccess(res, "Room berhasil dihapus");
 });
 
 /**
