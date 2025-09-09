@@ -53,6 +53,17 @@ export const createPrivateRoom = catchAsync(async (req, res, next) => {
     return sendError(res, "Anda tidak punya akses", 403);
   }
 
+  // check if target admin exists
+  const targetAdmin = await db.Admin.findByPk(target_admin_id);
+  if (!targetAdmin) {
+    return sendError(res, "Admin tidak ditemukan", 404);
+  }
+
+  // Check if admin is active
+  if (!targetAdmin.actived) {
+    return sendError(res, "Admin tidak ditemukan", 404);
+  }
+
   // Check for existing one-to-one room between these specific two users
   const currentUserRooms = await RoomMember.findAll({
     where: {
