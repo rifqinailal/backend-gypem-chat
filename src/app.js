@@ -11,18 +11,17 @@ dotenv.config();
 // Buat instance aplikasi Express
 const app = express();
 
-/*
-============================================================
- Middleware
-============================================================
-*/
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), {
+  setHeaders: (res, path, stat) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+}));
 
 /*
 ============================================================
