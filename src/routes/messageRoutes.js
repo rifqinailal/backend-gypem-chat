@@ -29,15 +29,15 @@ const validate = (schema) => (req, res, next) => {
 
 // --- Skema Validasi ---
 const deleteForMeSchema = Joi.object({
-    message_status_ids: Joi.array().items(Joi.number().integer()).min(1).required()
+    message_status_id: Joi.array().items(Joi.number().integer()).min(1).required()
 });
 
 const deleteGloballySchema = Joi.object({
-    message_ids: Joi.array().items(Joi.number().integer()).min(1).required()
+    message_id: Joi.array().items(Joi.number().integer()).min(1).required()
 });
 
 const readMessageSchema = Joi.object({
-    message_status_ids: Joi.array().items(Joi.number().integer()).min(1).required()
+    message_status_id: Joi.array().items(Joi.number().integer()).min(1).required()
 });
 
 // --- Definisi Rute ---
